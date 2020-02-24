@@ -2,12 +2,13 @@ package shadowsocks
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/Jigsaw-Code/outline-ss-server/shadowsocks"
-	"github.com/eycorsican/go-tun2socks/core"
 )
 
 type udpHandler struct {
@@ -37,7 +38,7 @@ func NewUDPHandler(host string, port int, password, cipher string, timeout time.
 	}
 }
 
-func (h *udpHandler) Connect(conn core.UDPConn, target *net.UDPAddr) error {
+func (h *udpHandler) Connect(conn core.UDPConn, _ *net.UDPAddr) error {
 	proxyConn, err := h.client.ListenUDP(nil)
 	if err != nil {
 		return err
@@ -86,10 +87,12 @@ func (h *udpHandler) ReceiveTo(conn core.UDPConn, data []byte, addr *net.UDPAddr
 }
 
 func (h *udpHandler) Close(conn core.UDPConn) {
-	conn.Close()
 	h.Lock()
+	conn.Close()
 	defer h.Unlock()
 	if proxyConn, ok := h.conns[conn]; ok {
 		proxyConn.Close()
+	} else {
+		log.Printf("No matching proxy conn for %s", conn.LocalAddr().String())
 	}
 }

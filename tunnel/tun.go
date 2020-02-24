@@ -1,49 +1,67 @@
 package tunnel
 
 import (
-	"errors"
-	"os"
+	"io"
+	"log"
 
-	"github.com/eycorsican/go-tun2socks/common/log"
 	_ "github.com/eycorsican/go-tun2socks/common/log/simple" // Import simple log for the side effect of making logs printable.
-	"golang.org/x/sys/unix"
+	"gvisor.dev/gvisor/pkg/tcpip"
+	"gvisor.dev/gvisor/pkg/tcpip/buffer"
+	"gvisor.dev/gvisor/pkg/tcpip/header"
+	"gvisor.dev/gvisor/pkg/tcpip/link/channel"
+	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
 const vpnMtu = 1500
 
-// MakeTunFile returns an os.File object from a TUN file descriptor `fd`.
-// The returned os.File holds a separate reference to the underlying file,
-// so the file will not be closed until both `fd` and the os.File are
-// separately closed.  (UNIX only.)
-func MakeTunFile(fd int) (*os.File, error) {
-	if fd < 0 {
-		return nil, errors.New("Must provide a valid TUN file descriptor")
-	}
-	// Make a copy of `fd` so that os.File's finalizer doesn't close `fd`.
-	newfd, err := unix.Dup(fd)
-	if err != nil {
-		return nil, err
-	}
-	file := os.NewFile(uintptr(newfd), "")
-	if file == nil {
-		return nil, errors.New("Failed to open TUN file descriptor")
-	}
-	return file, nil
+type notifyWriter struct {
+	tunWriter io.WriteCloser
+	endpoint  *channel.Endpoint
 }
 
-// ProcessInputPackets reads packets from a TUN device `tun` and writes them to `tunnel`.
-func ProcessInputPackets(tunnel Tunnel, tun *os.File) {
-	buffer := make([]byte, vpnMtu)
-	for tunnel.IsConnected() {
-		len, err := tun.Read(buffer)
-		if err != nil {
-			log.Warnf("Failed to read packet from TUN: %v", err)
-			continue
+// Implements NotifyWriter
+func (w *notifyWriter) WriteNotify() {
+	packetInfo, ok := w.endpoint.Read()
+	if ok {
+		var data []byte
+		for _, view := range packetInfo.Pkt.Views() {
+			data = append(data, view...)
 		}
-		if len == 0 {
-			log.Infof("Read EOF from TUN")
-			continue
+		if _, err := w.tunWriter.Write(data); err != nil {
+			log.Printf("Downstream packet err=%v", err)
 		}
-		tunnel.Write(buffer)
+	} else {
+		log.Printf("Closing tunWriter")
+		w.tunWriter.Close()
 	}
+}
+
+type Endpoint struct {
+	*channel.Endpoint
+}
+
+// Implements io.Writer.  pkt must be a complete IP packet.
+func (e *Endpoint) Write(pkt []byte) (n int, err error) {
+	n = len(pkt)
+	// NewPacketBuffer takes ownership of the input.  TODO: Avoid copy.
+	vv := buffer.NewViewFromBytes(pkt).ToVectorisedView()
+	packetBuffer := stack.NewPacketBuffer(stack.PacketBufferOptions{Data: vv})
+	//log.Printf("Upstream packet %v", packetBuffer)
+
+	protocol := header.IPv6ProtocolNumber
+	if header.IPVersion(pkt) == header.IPv4Version {
+		protocol = header.IPv4ProtocolNumber
+	}
+	e.InjectInbound(protocol, packetBuffer)
+	return
+}
+
+func NewLink(tunWriter io.WriteCloser) *Endpoint {
+	macAddress := tcpip.LinkAddress(string(make([]byte, 6)))
+	const pktQueueDepth = 1 // Empirically must be at least 1
+	endpoint := channel.New(pktQueueDepth, vpnMtu, macAddress)
+	endpoint.AddNotify(&notifyWriter{tunWriter, endpoint})
+	// FIXME: What about RemoveNotify?
+
+	return &Endpoint{endpoint}
 }

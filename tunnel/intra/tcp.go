@@ -21,11 +21,13 @@ import (
 	"net"
 	"time"
 
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/eycorsican/go-tun2socks/common/log"
-	"github.com/eycorsican/go-tun2socks/core"
 
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/split"
+
+	onet "github.com/Jigsaw-Code/outline-ss-server/net"
 )
 
 // TCPHandler is a core TCP handler that also supports DOH and splitting control.
@@ -75,14 +77,14 @@ func NewTCPHandler(fakedns net.TCPAddr, dialer *net.Dialer, listener TCPListener
 }
 
 // TODO: Propagate TCP RST using local.Abort(), on appropriate errors.
-func (h *tcpHandler) handleUpload(local core.TCPConn, remote split.DuplexConn, upload chan int64) {
+func (h *tcpHandler) handleUpload(local onet.DuplexConn, remote split.DuplexConn, upload chan int64) {
 	bytes, _ := remote.ReadFrom(local)
 	local.CloseRead()
 	remote.CloseWrite()
 	upload <- bytes
 }
 
-func (h *tcpHandler) handleDownload(local core.TCPConn, remote split.DuplexConn) (bytes int64, err error) {
+func (h *tcpHandler) handleDownload(local onet.DuplexConn, remote split.DuplexConn) (bytes int64, err error) {
 	bytes, err = io.Copy(local, remote)
 	local.CloseWrite()
 	remote.CloseRead()
@@ -90,7 +92,7 @@ func (h *tcpHandler) handleDownload(local core.TCPConn, remote split.DuplexConn)
 }
 
 func (h *tcpHandler) forward(local net.Conn, remote split.DuplexConn, summary *TCPSocketSummary) {
-	localtcp := local.(core.TCPConn)
+	localtcp := local.(onet.DuplexConn)
 	upload := make(chan int64)
 	start := time.Now()
 	go h.handleUpload(localtcp, remote, upload)
@@ -121,7 +123,6 @@ func filteredPort(addr net.Addr) int16 {
 	return -1
 }
 
-// TODO: Request upstream to make `conn` a `core.TCPConn` so we can avoid a type assertion.
 func (h *tcpHandler) Handle(conn net.Conn, target *net.TCPAddr) error {
 	// DNS override
 	if target.IP.Equal(h.fakedns.IP) && target.Port == h.fakedns.Port {

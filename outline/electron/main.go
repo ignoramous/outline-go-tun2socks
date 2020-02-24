@@ -25,11 +25,9 @@ import (
 	"time"
 
 	oss "github.com/Jigsaw-Code/outline-go-tun2socks/outline/shadowsocks"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/shadowsocks"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
 	"github.com/eycorsican/go-tun2socks/common/log"
 	_ "github.com/eycorsican/go-tun2socks/common/log/simple" // Register a simple logger.
-	"github.com/eycorsican/go-tun2socks/core"
-	"github.com/eycorsican/go-tun2socks/proxy/dnsfallback"
 	"github.com/eycorsican/go-tun2socks/tun"
 )
 
@@ -112,25 +110,17 @@ func main() {
 		log.Errorf("Failed to open TUN device: %v", err)
 		os.Exit(oss.SystemMisconfigured)
 	}
-	// Output packets to TUN device
-	core.RegisterOutputFn(tunDevice.Write)
 
-	// Register TCP and UDP connection handlers
-	core.RegisterTCPConnHandler(
-		shadowsocks.NewTCPHandler(*args.proxyHost, *args.proxyPort, *args.proxyPassword, *args.proxyCipher))
-	if *args.dnsFallback {
-		// UDP connectivity not supported, fall back to DNS over TCP.
-		log.Debugf("Registering DNS fallback UDP handler")
-		core.RegisterUDPConnHandler(dnsfallback.NewUDPHandler())
-	} else {
-		core.RegisterUDPConnHandler(
-			shadowsocks.NewUDPHandler(*args.proxyHost, *args.proxyPort, *args.proxyPassword, *args.proxyCipher, udpTimeout))
+	link := tunnel.NewLink(tunDevice)
+	t, err := tunnel.NewOutlineTunnel(*args.proxyHost, *args.proxyPort, *args.proxyPassword, *args.proxyCipher, !*args.dnsFallback, link)
+	if err != nil {
+		log.Errorf("Failed to create Outline tunnel: %v", err)
+		os.Exit(oss.IllegalConfiguration)
 	}
 
-	// Configure LWIP stack to receive input data from the TUN device
-	lwipWriter := core.NewLWIPStack()
 	go func() {
-		_, err := io.CopyBuffer(lwipWriter, tunDevice, make([]byte, mtu))
+		log.Debugf("Starting upstream copy loop")
+		_, err := io.CopyBuffer(link, tunDevice, make([]byte, mtu))
 		if err != nil {
 			log.Errorf("Failed to write data to network stack: %v", err)
 			os.Exit(oss.Unexpected)
@@ -143,6 +133,7 @@ func main() {
 	signal.Notify(osSignals, os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGHUP)
 	sig := <-osSignals
 	log.Debugf("Received signal: %v", sig)
+	t.Disconnect()
 }
 
 func setLogLevel(level string) {

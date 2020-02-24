@@ -1,11 +1,12 @@
 package shadowsocks
 
 import (
+	"log"
 	"net"
 
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	onet "github.com/Jigsaw-Code/outline-ss-server/net"
 	"github.com/Jigsaw-Code/outline-ss-server/shadowsocks"
-	"github.com/eycorsican/go-tun2socks/core"
 )
 
 type tcpHandler struct {
@@ -21,6 +22,7 @@ type tcpHandler struct {
 func NewTCPHandler(host string, port int, password, cipher string) core.TCPConnHandler {
 	client, err := shadowsocks.NewClient(host, port, password, cipher)
 	if err != nil {
+		log.Printf("Error creating shadowsocks client: %v\n", err)
 		return nil
 	}
 	return &tcpHandler{client}
@@ -31,7 +33,11 @@ func (h *tcpHandler) Handle(conn net.Conn, target *net.TCPAddr) error {
 	if err != nil {
 		return err
 	}
-	// TODO: Request upstream to make `conn` a `core.TCPConn` so we can avoid this type assertion.
-	go onet.Relay(conn.(core.TCPConn), proxyConn)
+	go func() {
+		_, _, err := onet.Relay(conn.(onet.DuplexConn), proxyConn)
+		if err != nil {
+			log.Printf("TCP relay error: %v", err)
+		}
+	}()
 	return nil
 }

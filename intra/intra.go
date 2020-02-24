@@ -22,6 +22,7 @@ import (
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/protect"
 	"github.com/eycorsican/go-tun2socks/common/log"
+	"gvisor.dev/gvisor/pkg/tcpip/link/fdbased"
 )
 
 func init() {
@@ -48,7 +49,7 @@ func init() {
 // Throws an exception if the TUN file descriptor cannot be opened, or if the tunnel fails to
 // connect.
 func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector protect.Protector, listener tunnel.IntraListener) (tunnel.IntraTunnel, error) {
-	tun, err := tunnel.MakeTunFile(fd)
+	tun, err := fdbased.New(&fdbased.Options{FDs: []int{fd}})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +59,7 @@ func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector 
 	if err != nil {
 		return nil, err
 	}
-	go tunnel.ProcessInputPackets(t, tun)
+	// FIXME go tunnel.ProcessInputPackets(t, tun)
 	return t, nil
 }
 

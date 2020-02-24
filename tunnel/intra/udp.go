@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/eycorsican/go-tun2socks/common/log"
-	"github.com/eycorsican/go-tun2socks/core"
 
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
 )
