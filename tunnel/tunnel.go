@@ -16,9 +16,9 @@ package tunnel
 
 import (
 	"errors"
-	"io"
 
-	"github.com/eycorsican/go-tun2socks/core"
+	"gvisor.dev/gvisor/pkg/tcpip/buffer"
+	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
 // Tunnel represents a session on a TUN device.
@@ -32,8 +32,8 @@ type Tunnel interface {
 }
 
 type tunnel struct {
-	tunWriter   io.WriteCloser
-	lwipStack   core.LWIPStack
+	netstack    *stack.Stack
+	endpoint    stack.LinkEndpoint
 	isConnected bool
 }
 
@@ -46,12 +46,12 @@ func (t *tunnel) Disconnect() {
 		return
 	}
 	t.isConnected = false
-	t.lwipStack.Close()
+	t.netstack.Close()
 }
 
 func (t *tunnel) Write(data []byte) (int, error) {
 	if !t.isConnected {
 		return 0, errors.New("Failed to write, network stack closed")
 	}
-	return t.lwipStack.Write(data)
+	return len(data), t.endpoint.WriteRawPacket(buffer.NewVectorisedView(1, []buffer.View{data}))
 }

@@ -16,11 +16,16 @@ package tunnel
 
 import (
 	"errors"
-	"io"
 	"net"
 	"time"
 
 	"github.com/eycorsican/go-tun2socks/core"
+	"gvisor.dev/gvisor/pkg/tcpip/link/fdbased"
+	"gvisor.dev/gvisor/pkg/tcpip/network/ipv4"
+	"gvisor.dev/gvisor/pkg/tcpip/network/ipv6"
+	"gvisor.dev/gvisor/pkg/tcpip/stack"
+	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
+	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
 
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra"
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
@@ -65,12 +70,24 @@ type intratunnel struct {
 // `tunWriter` is the downstream VPN tunnel
 // `dialer` and `config` will be used for all network activity.
 // `listener` will be notified at the completion of every tunneled socket.
-func NewIntraTunnel(fakedns, udpdns, tcpdns string, dohdns doh.Transport, tunWriter io.WriteCloser, dialer *net.Dialer, config *net.ListenConfig, listener IntraListener) (IntraTunnel, error) {
-	if tunWriter == nil {
-		return nil, errors.New("Must provide a valid TUN writer")
+func NewIntraTunnel(fakedns, udpdns, tcpdns string, dohdns doh.Transport, fd int, dialer *net.Dialer, config *net.ListenConfig, listener IntraListener) (IntraTunnel, error) {
+	endpoint, err := fdbased.New(&fdbased.Options{FDs: []int{fd}})
+	if err != nil {
+		return nil, err
 	}
-	core.RegisterOutputFn(tunWriter.Write)
-	base := &tunnel{tunWriter, core.NewLWIPStack(), true}
+	const nicID = 1
+	netstack := stack.New(stack.Options{
+		NetworkProtocols:   []stack.NetworkProtocol{ipv4.NewProtocol(), ipv6.NewProtocol()},
+		TransportProtocols: []stack.TransportProtocol{tcp.NewProtocol(), udp.NewProtocol()},
+		HandleLocal:        false, // false to force all traffic to be forwarded.
+	})
+	if neterr := netstack.CreateNICWithOptions(nicID, endpoint, stack.NICOptions{Disabled: true}); neterr != nil {
+		return nil, errors.New(neterr.String())
+	}
+	if neterr := netstack.SetPromiscuousMode(nicID, true); neterr != nil {
+		return nil, errors.New(neterr.String())
+	}
+	base := &tunnel{netstack, endpoint, true}
 	t := &intratunnel{
 		tunnel: base,
 	}
@@ -79,6 +96,9 @@ func NewIntraTunnel(fakedns, udpdns, tcpdns string, dohdns doh.Transport, tunWri
 	}
 	if dohdns != nil {
 		t.SetDNS(dohdns)
+	}
+	if stackerr := netstack.EnableNIC(nicID); stackerr != nil {
+		return nil, errors.New(stackerr.String())
 	}
 	return t, nil
 }
@@ -108,7 +128,8 @@ func (t *intratunnel) registerConnectionHandlers(fakedns, udpdns, tcpdns string,
 		return err
 	}
 	t.tcp = intra.NewTCPHandler(*tcpfakedns, *tcptruedns, dialer, listener)
-	core.RegisterTCPConnHandler(t.tcp)
+	tcpForwarder := tcp.NewForwarder(t.netstack, 0, 10, tcphandler(nil))
+	t.netstack.SetTransportProtocolHandler(tcp.ProtocolNumber, tcpForwarder.HandlePacket)
 	return nil
 }
 
