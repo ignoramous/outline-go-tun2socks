@@ -10,10 +10,6 @@ github.com/Jigsaw-Code/outline-ss-server v1.1.5 h1:SKCTbTNPHmYGHAjK+RZOxQeNhdOtO
 github.com/Jigsaw-Code/outline-ss-server v1.1.5/go.mod h1:C1m/DmYuzvcxRfn6Q5tT5T9UbJhZoP0PtoJx+X8agOo=
 github.com/Jigsaw-Code/outline-ss-server v1.1.7 h1:DvrcR734tUShHKwFicPGWJrjNgavmT/PXDeuNCbnJFk=
 github.com/Jigsaw-Code/outline-ss-server v1.1.7/go.mod h1:C1m/DmYuzvcxRfn6Q5tT5T9UbJhZoP0PtoJx+X8agOo=
-github.com/Jigsaw-Code/outline-ss-server v1.1.8 h1:JEyOUuZWaXBEr3w59BX5WA6ArA73xIe5ckzhjm9SLKI=
-github.com/Jigsaw-Code/outline-ss-server v1.1.8/go.mod h1:C1m/DmYuzvcxRfn6Q5tT5T9UbJhZoP0PtoJx+X8agOo=
-github.com/Jigsaw-Code/outline-ss-server v1.2.1 h1:+7+Y0skiO3tcX8bG4Oj5kfai8IjYVm8BsMlI8e3njRo=
-github.com/Jigsaw-Code/outline-ss-server v1.2.1/go.mod h1:C1m/DmYuzvcxRfn6Q5tT5T9UbJhZoP0PtoJx+X8agOo=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWXgklEdEo=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
