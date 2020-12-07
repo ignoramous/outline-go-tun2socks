@@ -23,7 +23,7 @@ import (
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 
 	oss "github.com/Jigsaw-Code/outline-go-tun2socks/shadowsocks"
-	"github.com/Jigsaw-Code/outline-ss-server/shadowsocks"
+	shadowsocks "github.com/Jigsaw-Code/outline-ss-server/client"
 )
 
 // OutlineTunnel represents a tunnel from a TUN device to a server.
