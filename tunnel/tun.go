@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 
+	"github.com/Jigsaw-Code/outline-ss-server/slicepool"
 	_ "github.com/eycorsican/go-tun2socks/common/log/simple" // Import simple log for the side effect of making logs printable.
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/buffer"
@@ -14,6 +15,8 @@ import (
 
 const vpnMtu = 1500
 
+var pool = slicepool.MakePool(vpnMtu)
+
 // Implements channel.Notification
 type notifyWriter struct {
 	tunWriter io.WriteCloser
@@ -23,14 +26,16 @@ type notifyWriter struct {
 func (w *notifyWriter) WriteNotify() {
 	// Read downstream packet.
 	if packetInfo, ok := w.link.Read(); ok {
-		// TODO: Avoid copy.
-		var data []byte
+		// Combine headers and body into a single write to the TUN device.
+		lazySlice := pool.LazySlice()
+		buf := lazySlice.Acquire()[:0]
 		for _, view := range packetInfo.Pkt.Views() {
-			data = append(data, view...)
+			buf = append(buf, view...)
 		}
-		if _, err := w.tunWriter.Write(data); err != nil {
+		if _, err := w.tunWriter.Write(buf); err != nil {
 			log.Printf("Downstream packet err=%v", err)
 		}
+		lazySlice.Release()
 	} else {
 		log.Printf("Closing tunWriter")
 		w.tunWriter.Close()
