@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	shadowsocks "github.com/Jigsaw-Code/outline-ss-server/client"
-	"github.com/eycorsican/go-tun2socks/core"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
+    shadowsocks "github.com/Jigsaw-Code/outline-ss-server/client"
 )
 
 type udpHandler struct {

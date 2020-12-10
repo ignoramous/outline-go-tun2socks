@@ -18,7 +18,7 @@ MACOS_ARTIFACT=$(MACOS_BUILDDIR)/Tun2socks.framework
 WINDOWS_BUILDDIR=$(BUILDDIR)/windows
 LINUX_BUILDDIR=$(BUILDDIR)/linux
 
-ANDROID_BUILD_CMD="$(GOBIND) -a -ldflags $(ANDROID_LDFLAGS) -target=android -tags android -work -o $(ANDROID_ARTIFACT)"
+ANDROID_BUILD_CMD="CGO_ENABLED=0 GO111MODULE=on $(GOBIND) -a -ldflags $(ANDROID_LDFLAGS) -target=android/arm64,android/amd64 -tags android -work -o $(ANDROID_ARTIFACT)"
 ANDROID_OUTLINE_BUILD_CMD="$(ANDROID_BUILD_CMD) $(IMPORT_PATH)/outline/android $(IMPORT_PATH)/outline/shadowsocks"
 ANDROID_INTRA_BUILD_CMD="$(ANDROID_BUILD_CMD) $(IMPORT_PATH)/intra $(IMPORT_PATH)/tunnel $(IMPORT_PATH)/tunnel/intra $(IMPORT_PATH)/tunnel/intra/doh $(IMPORT_PATH)/tunnel/intra/split $(IMPORT_PATH)/tunnel/intra/protect $(IMPORT_PATH)/tunnel/settings $(IMPORT_PATH)/tunnel/intra/dnscrypt $(IMPORT_PATH)/tunnel/intra/dnsx $(IMPORT_PATH)/tunnel/intra/xdns"
 IOS_BUILD_CMD="$(GOBIND) -a -ldflags $(LDFLAGS) -bundleid org.outline.tun2socks -target=ios/arm64 -tags ios -o $(IOS_ARTIFACT) $(IMPORT_PATH)/outline/apple $(IMPORT_PATH)/outline/shadowsocks"
@@ -39,6 +39,7 @@ android-outline:
 	$(call build,$(ANDROID_BUILDDIR),$(ANDROID_OUTLINE_BUILD_CMD))
 
 android-intra:
+	$(call build,$(ANDROID_BUILDDIR),$(GVSIOR_BUILD_CMD))
 	$(call build,$(ANDROID_BUILDDIR),$(ANDROID_INTRA_BUILD_CMD))
 
 ios:

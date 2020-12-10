@@ -23,9 +23,8 @@ import (
 	"time"
 
 	"golang.org/x/net/proxy"
-
+	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/eycorsican/go-tun2socks/common/log"
-	"github.com/eycorsican/go-tun2socks/core"
 
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/dnscrypt"
 	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
