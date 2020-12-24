@@ -22,18 +22,18 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/outline"
 )
 
 // OutlineTunnel embeds the tun2socks.Tunnel interface so it gets exported by gobind.
 type OutlineTunnel interface {
-	tunnel.OutlineTunnel
+	outline.Tunnel
 	// Write writes input data to the TUN interface.
 	Write(data []byte) (int, error)
 }
 
 type appleTunnel struct {
-	tunnel.OutlineTunnel
+	outline.Tunnel
 	io.Writer
 }
 
@@ -74,7 +74,7 @@ func ConnectShadowsocksTunnel(tunWriter TunWriter, host string, port int, passwo
 		return nil, fmt.Errorf("Invalid port number: %v", port)
 	}
     link := tunnel.NewLink(tunWriter)
-	outlineTunnel, err := tunnel.NewOutlineTunnel(host, port, password, cipher, isUDPEnabled, link)
+	outlineTunnel, err := outline.NewTunnel(host, port, password, cipher, isUDPEnabled, link)
 	if err != nil {
 		return nil, err
 	}

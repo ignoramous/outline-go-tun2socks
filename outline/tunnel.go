@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tunnel
+package outline
 
 import (
 	"fmt"
@@ -23,12 +23,13 @@ import (
     "gvisor.dev/gvisor/pkg/tcpip/stack"
 
 	oss "github.com/Jigsaw-Code/outline-go-tun2socks/shadowsocks"
+    "github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
 	shadowsocks "github.com/Jigsaw-Code/outline-ss-server/client"
 )
 
 // OutlineTunnel represents a tunnel from a TUN device to a server.
-type OutlineTunnel interface {
-	Tunnel
+type Tunnel interface {
+	tunnel.Tunnel
 
 	// UpdateUDPSupport determines if UDP is supported following a network connectivity change.
 	// Sets the tunnel's UDP connection handler accordingly, falling back to DNS over TCP if UDP is not supported.
@@ -37,7 +38,8 @@ type OutlineTunnel interface {
 }
 
 type outlinetunnel struct {
-	*tunnel
+	tunnel.Tunnel
+    lwipStack    core.LWIPStack
 	host         string
 	port         int
 	password     string
@@ -53,14 +55,14 @@ type outlinetunnel struct {
 // `cipher` is the encryption cipher used by the Shadowsocks proxy.
 // `isUDPEnabled` indicates if the Shadowsocks proxy and the network support proxying UDP traffic.
 // `in` is the TUN device.
-func NewOutlineTunnel(host string, port int, password, cipher string, isUDPEnabled bool, link stack.LinkEndpoint) (OutlineTunnel, error) {
+func NewTunnel(host string, port int, password, cipher string, isUDPEnabled bool, link stack.LinkEndpoint) (Tunnel, error) {
 	_, err := shadowsocks.NewClient(host, port, password, cipher)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid Shadowsocks proxy parameters: %v", err.Error())
 	}
 	t := &outlinetunnel{nil, host, port, password, cipher, isUDPEnabled}
 	tcp, udp := t.getConnectionHandlers()
-	t.tunnel, err = MakeTunnel(link, tcp, udp)
+	t.tunnel, err = tunnel.MakeTunnel(link, tcp, udp)
 	if err != nil {
 		return nil, err
 	}

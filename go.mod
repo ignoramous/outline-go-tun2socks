@@ -9,6 +9,7 @@ require (
 	github.com/bazelbuild/rules_go v0.25.0 // indirect
 	github.com/celzero/gotrie v0.0.0-20201019185855-82d11a96233f
 	github.com/eycorsican/go-tun2socks v1.16.11
+	github.com/google/btree v1.0.0 // indirect
 	github.com/jedisct1/go-clocksmith v0.0.0-20190707124905-73e087c7979c
 	github.com/jedisct1/go-dnsstamps v0.0.0-20200621175006-302248eecc94
 	github.com/jedisct1/xsecretbox v0.0.0-20190909160646-b731c21297f9

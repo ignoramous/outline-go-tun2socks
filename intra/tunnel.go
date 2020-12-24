@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tunnel
+package intra
 
 import (
 	"fmt"
@@ -23,26 +23,26 @@ import (
 
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/dnscrypt"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/dnsx"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
-    "github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/protect"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/settings"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/dnscrypt"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/dnsx"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
+    "github.com/Jigsaw-Code/outline-go-tun2socks/intra/protect"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/settings"
 )
 
 // IntraListener receives usage statistics when a UDP or TCP socket is closed,
 // or a DNS query is completed.
 type IntraListener interface {
-	intra.UDPListener
-	intra.TCPListener
+	UDPListener
+	TCPListener
 	doh.Listener
 	dnscrypt.Listener
 }
 
 // IntraTunnel represents an Intra session.
-type IntraTunnel interface {
-	Tunnel
+type Tunnel interface {
+	tunnel.Tunnel
 	// Get the DNSTransport (default: nil).
 	GetDNS() doh.Transport
 	// Set the DNSTransport.  This method must be called before connecting the transport
@@ -81,9 +81,9 @@ type IntraTunnel interface {
 }
 
 type intratunnel struct {
-	*tunnel
-	tcp          intra.TCPHandler
-	udp          intra.UDPHandler
+	tunnel.Tunnel
+	tcp          TCPHandler
+	udp          UDPHandler
 	dns          doh.Transport
 	tunmode      *settings.TunMode
 	dnscrypt     *dnscrypt.Proxy
@@ -92,7 +92,7 @@ type intratunnel struct {
 	bravedns     dnsx.BraveDNS
 }
 
-// NewIntraTunnel creates a connected Intra session.
+// NewTunnel creates a connected Intra session.
 //
 // `fakedns` is the DNS server (IP and port) that will be used by apps on the TUN device.
 //    This will normally be a reserved or remote IP address, port 53.
@@ -102,7 +102,7 @@ type intratunnel struct {
 // `link` is the TUN device
 // `dialer` and `config` will be used for all network activity.
 // `listener` will be notified at the completion of every tunneled socket.
-func NewIntraTunnel(fakedns string, dohdns doh.Transport, link stack.LinkEndpoint, dialer *net.Dialer, blocker protect.Blocker, config *net.ListenConfig, listener IntraListener) (IntraTunnel, error) {
+func NewTunnel(fakedns string, dohdns doh.Transport, link stack.LinkEndpoint, dialer *net.Dialer, blocker protect.Blocker, config *net.ListenConfig, listener IntraListener) (Tunnel, error) {
 	tmodedefault := settings.DefaultTunMode()
 
 	tcp, udp, err := getConnectionHandlers(fakedns, dialer, config, tmodedefault, blocker, listener)
@@ -110,13 +110,13 @@ func NewIntraTunnel(fakedns string, dohdns doh.Transport, link stack.LinkEndpoin
 		return nil, err
 	}
 
-	base, err := MakeTunnel(link, tcp, udp)
+	base, err := tunnel.MakeTunnel(link, tcp, udp)
 	if err != nil {
 		return nil, err
 	}
 
 	t := &intratunnel{
-		tunnel: base,
+		Tunnel: base,
 		tunmode: tmodedefault,
 		tcp:    tcp,
 		udp:    udp,
@@ -126,7 +126,7 @@ func NewIntraTunnel(fakedns string, dohdns doh.Transport, link stack.LinkEndpoin
 }
 
 // Returns Intra's custom UDP and TCP connection handlers.
-func getConnectionHandlers(fakedns string, dialer *net.Dialer, config *net.ListenConfig, tunmode *settings.TunMode, blocker protect.Blocker, listener IntraListener) (intra.TCPHandler, intra.UDPHandler, error) {
+func getConnectionHandlers(fakedns string, dialer *net.Dialer, config *net.ListenConfig, tunmode *settings.TunMode, blocker protect.Blocker, listener IntraListener) (TCPHandler, UDPHandler, error) {
 	// RFC 5382 REQ-5 requires a timeout no shorter than 2 hours and 4 minutes.
 	timeout, _ := time.ParseDuration("2h4m")
 
@@ -134,13 +134,13 @@ func getConnectionHandlers(fakedns string, dialer *net.Dialer, config *net.Liste
 	if err != nil {
 		return nil, nil, err
 	}
-	udp := intra.NewUDPHandler(*udpfakedns, timeout, blocker, tunmode, config, listener)
+	udp := NewUDPHandler(*udpfakedns, timeout, blocker, tunmode, config, listener)
 
 	tcpfakedns, err := net.ResolveTCPAddr("tcp", fakedns)
 	if err != nil {
 		return nil, nil, err
 	}
-	tcp := intra.NewTCPHandler(*tcpfakedns, dialer, blocker, tunmode, listener)
+	tcp := NewTCPHandler(*tcpfakedns, dialer, blocker, tunmode, listener)
 	return tcp, udp, nil
 }
 

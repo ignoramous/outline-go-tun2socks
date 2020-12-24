@@ -26,11 +26,11 @@ import (
 	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/eycorsican/go-tun2socks/common/log"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/dnscrypt"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/protect"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/split"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/settings"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/dnscrypt"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/protect"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/split"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/settings"
 )
 
 // TCPHandler is a core TCP handler that also supports DOH and splitting control.
@@ -204,6 +204,9 @@ func (h *tcpHandler) blockConn(localConn net.Conn, target *net.TCPAddr) (block b
 			uid = procEntry.UserID
 		}
 	}
+
+		log.Infof("firewalled connection from %s:%s to %s:%s %d",
+			localaddr.Network(), localaddr.String(), target.Network(), target.String(), uid)
 
 	block = h.blocker.Block(6 /*TCP*/, uid, localaddr.String(), target.String())
 

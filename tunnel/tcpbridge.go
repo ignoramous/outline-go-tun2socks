@@ -26,6 +26,11 @@ import (
 	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 )
 
+const (
+	windowSize = 0
+	maxAttempts = 10
+)
+
 func tcpbridge(handler core.TCPConnHandler, r *tcp.ForwarderRequest) {
 	id := r.ID()
 	dstAddr := net.TCPAddr{
@@ -37,9 +42,11 @@ func tcpbridge(handler core.TCPConnHandler, r *tcp.ForwarderRequest) {
 	// TODO: Delay CreateEndpoint until after connection setup.
 	endpoint, stackerr := r.CreateEndpoint(&q)
 	if stackerr != nil {
+        r.Complete(true)
 		log.Printf("Endpoint creation failed for request %v (%s): %v", r, dstAddr.String(), stackerr)
 		return
 	}
+    r.Complete(false) // notify?
 
 	err := handler.Handle(gonet.NewTCPConn(&q, endpoint), &dstAddr)
 	if err != nil {
@@ -57,5 +64,5 @@ func tcphandler(handler core.TCPConnHandler) func(*tcp.ForwarderRequest) {
 }
 
 func newTCPForwarder(s *stack.Stack, handler core.TCPConnHandler) *tcp.Forwarder {
-	return tcp.NewForwarder(s, 0, 10, tcphandler(handler))
+	return tcp.NewForwarder(s, windowSize, maxAttempts, tcphandler(handler))
 }

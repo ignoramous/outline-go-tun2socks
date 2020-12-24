@@ -29,10 +29,10 @@ import (
 	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
 	"github.com/eycorsican/go-tun2socks/common/log"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/dnscrypt"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/protect"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/settings"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/dnscrypt"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/protect"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/settings"
 )
 
 // UDPSocketSummary describes a non-DNS UDP association, reported when it is discarded.
@@ -176,7 +176,10 @@ func (h *udpHandler) blockConnAddr(source *net.UDPAddr, target *net.UDPAddr) (bl
 		}
 	}
 
-	block = h.blocker.Block(17 /*UDP*/, uid, source.String(), target.String())
+		log.Infof("firewalled udp connection from %s:%s to %s:%s %d",
+			source.Network(), source.String(), target.Network(), target.String(), uid)
+
+	// block = h.blocker.Block(17 /*UDP*/, uid, source.String(), target.String())
 
 	if block {
 		log.Infof("firewalled udp connection from %s:%s to %s:%s",
@@ -292,8 +295,8 @@ func (h *udpHandler) isDNSCrypt(addr *net.UDPAddr, t *tracker) bool {
 
 func (h *udpHandler) dnsOverride(dns doh.Transport, dcrypt *dnscrypt.Proxy,
 	t *tracker, conn core.UDPConn, addr *net.UDPAddr, data []byte) bool {
-	dataCopy := append([]byte{}, data...)
-
+	// dataCopy := append([]byte{}, data...)
+    dataCopy := data
 	if h.isDoh(addr) {
 		if dns == nil {
 			log.Errorf("doh transport nil")
@@ -357,8 +360,8 @@ func (h *udpHandler) ReceiveTo(conn core.UDPConn, data []byte, addr *net.UDPAddr
 	}
 
 	if err != nil {
-		log.Warnf("failed to forward UDP payload")
-		return errors.New("failed to write UDP data")
+		log.Warnf("failed to forward UDP payload %v", err)
+		return err
 	}
 
 	return nil

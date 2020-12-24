@@ -19,7 +19,7 @@ import (
 	"math"
 	"runtime/debug"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/outline"
 	"github.com/eycorsican/go-tun2socks/common/log"
 	"gvisor.dev/gvisor/pkg/tcpip/link/fdbased"
 )
@@ -32,7 +32,7 @@ func init() {
 
 // OutlineTunnel embeds the tun2socks.OutlineTunnel interface so it gets exported by gobind.
 type OutlineTunnel interface {
-	tunnel.OutlineTunnel
+	outline.Tunnel
 }
 
 // ConnectShadowsocksTunnel reads packets from a TUN device and routes it to a Shadowsocks proxy server.
@@ -58,7 +58,7 @@ func ConnectShadowsocksTunnel(fd int, host string, port int, password, cipher st
 	if err != nil {
 		return nil, err
 	}
-	t, err := tunnel.NewOutlineTunnel(host, port, password, cipher, isUDPEnabled, link)
+	t, err := outline.NewTunnel(host, port, password, cipher, isUDPEnabled, link)
 	if err != nil {
 		return nil, err
 	}

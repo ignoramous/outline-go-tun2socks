@@ -20,10 +20,14 @@ import (
 
 	"gvisor.dev/gvisor/pkg/tcpip/link/fdbased"
 
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/doh"
-	"github.com/Jigsaw-Code/outline-go-tun2socks/tunnel/intra/protect"
+    "github.com/Jigsaw-Code/outline-go-tun2socks/intra"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/doh"
+	"github.com/Jigsaw-Code/outline-go-tun2socks/intra/protect"
 	"github.com/eycorsican/go-tun2socks/common/log"
+)
+
+const (
+    mtu = 1500
 )
 
 func init() {
@@ -48,9 +52,9 @@ func init() {
 //
 // Throws an exception if the TUN file descriptor cannot be opened, or if the tunnel fails to
 // connect.
-func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector protect.Protector, blocker protect.Blocker, listener tunnel.IntraListener) (tunnel.IntraTunnel, error) {
+func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector protect.Protector, blocker protect.Blocker, listener intra.IntraListener) (intra.Tunnel, error) {
 
-	tun, err := fdbased.New(&fdbased.Options{FDs: []int{fd}})
+	tun, err := fdbased.New(&fdbased.Options{FDs: []int{fd}, MTU: mtu, EthernetHeader: false,})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +62,7 @@ func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector 
 	dialer := protect.MakeDialer(protector)
 	config := protect.MakeListenConfig(protector)
 
-	t, err := tunnel.NewIntraTunnel(fakedns, dohdns, tun, dialer, blocker, config, listener)
+	t, err := intra.NewTunnel(fakedns, dohdns, tun, dialer, blocker, config, listener)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +76,7 @@ func ConnectIntraTunnel(fd int, fakedns string, dohdns doh.Transport, protector 
 //   wrapper is required because gomobile can't make bindings for []string.)
 // `protector` is the socket protector to use for all external network activity.
 // `listener` will be notified after each DNS query succeeds or fails.
-func NewDoHTransport(url string, ips string, protector protect.Protector, listener tunnel.IntraListener) (doh.Transport, error) {
+func NewDoHTransport(url string, ips string, protector protect.Protector, listener intra.IntraListener) (doh.Transport, error) {
 	split := []string{}
 	if len(ips) > 0 {
 		split = strings.Split(ips, ",")

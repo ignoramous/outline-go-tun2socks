@@ -16,12 +16,14 @@ package tunnel
 
 import (
 	"fmt"
+    // "net"
 
 	"github.com/Jigsaw-Code/outline-go-tun2socks/core"
-	"gvisor.dev/gvisor/pkg/tcpip"
-	"gvisor.dev/gvisor/pkg/tcpip/header"
+	// "gvisor.dev/gvisor/pkg/tcpip"
+	// "gvisor.dev/gvisor/pkg/tcpip/header"
 	"gvisor.dev/gvisor/pkg/tcpip/network/ipv4"
 	"gvisor.dev/gvisor/pkg/tcpip/network/ipv6"
+    "gvisor.dev/gvisor/pkg/tcpip/link/sniffer"
 	"gvisor.dev/gvisor/pkg/tcpip/stack"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/tcp"
 	"gvisor.dev/gvisor/pkg/tcpip/transport/udp"
@@ -44,21 +46,26 @@ func MakeTunnel(link stack.LinkEndpoint, tcpHandler core.TCPConnHandler, udpHand
 		HandleLocal:        false, // false to force all traffic to be forwarded.
 	})
 	// NIC is initially disabled so it can be configured first.
-	options := stack.NICOptions{Disabled: true}
-	if stackerr := netstack.CreateNICWithOptions(nicID, link, options); stackerr != nil {
+	options := stack.NICOptions{Disabled: false}
+	if stackerr := netstack.CreateNICWithOptions(nicID, sniffer.New(link), options); stackerr != nil {
 		return nil, fmt.Errorf("Failed to create NIC: %v", stackerr)
 	}
-	// Route everything
+	/* Route everything
 	netstack.SetRouteTable([]tcpip.Route{
 		{NIC: nicID, Destination: header.IPv6EmptySubnet},
 		{NIC: nicID, Destination: header.IPv4EmptySubnet},
 	})
+    gateway := tcpip.Address(net.ParseIP("10.111.222.1/24").To4())
+    netstack.AddAddress(nicID, ipv4.ProtocolNumber, gateway)
+    */
 	if stackerr := netstack.SetSpoofing(nicID, true); stackerr != nil {
 		return nil, fmt.Errorf("Failed to SetSpoofing: %v", stackerr)
 	}
 	if stackerr := netstack.SetPromiscuousMode(nicID, true); stackerr != nil {
 		return nil, fmt.Errorf("Failed to set promiscuous: %v", stackerr)
 	}
+    netstack.SetForwarding(ipv4.ProtocolNumber, true)
+    netstack.SetForwarding(ipv6.ProtocolNumber, true)
 
 	tcpForwarder := newTCPForwarder(netstack, tcpHandler)
 	netstack.SetTransportProtocolHandler(tcp.ProtocolNumber, tcpForwarder.HandlePacket)
